@@ -42,6 +42,7 @@ python manage.py run_worker --once
 
 ## 文档
 
+- [技术部部署交接报告](docs/deployment-report.md)
 - [部署交接、批量账号及 AI 设置](docs/handoff.md)
 
 - [零基础开发讲解](docs/zero-basics-development-guide.md)
