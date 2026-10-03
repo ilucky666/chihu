@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block header_subtitle %}我的吃乎 · Profile{% endblock %}
+{% block content %}
+<div class="brand-page profile-page">
+  <section class="profile-hero panel"><span class="profile-avatar">{{ user.display_name|default:user.username|slice:":1" }}</span><div><p class="eyebrow">MY CHIHU</p><h1>{{ user.display_name|default:user.username }}</h1><p>吃乎·测评管线 · {{ project_count }} 个参与项目</p></div><span class="role-badge">社团成员</span></section>
+  <section class="integration-placeholder"><span class="integration-icon" aria-hidden="true">⌘</span><h2>学校“自强”平台互联模块</h2><p>预留统一管理平台入口，接入后将在这里集中访问社团服务。</p></section>
+  <div class="profile-grid">
+    <section class="panel"><div class="brand-section-heading"><h2>个人信息</h2><span>当前账号</span></div><form method="post">{% csrf_token %}{{ form.as_p }}<button>保存个人信息</button></form><p><a href="{% url 'password-change' %}">修改登录密码 →</a></p></section>
+    <section class="panel"><div class="brand-section-heading"><h2>个人任务</h2><span>{{ task_count }} 项待办</span></div><a class="claimed-row" href="{% url 'task-inbox' %}"><span class="claimed-icon" aria-hidden="true">▤</span><span><strong>草稿与测评待办</strong><small>查看认领的菜品和进行中的节点</small></span><span class="claimed-arrow" aria-hidden="true">›</span></a><p class="muted">提醒目前通过站内消息提供，可在项目视图查看未读内容。</p></section>
+    <section class="panel"><h2>图片识别与手工录入</h2><strong>{{ vision_status.label }}</strong><p class="muted">{{ vision_status.message }}</p><p>任何模式都可手动添加菜品和付款，AI 结果需要人工确认。</p>{% if user.is_staff %}<p><a href="{% url 'admin:core_visionconfiguration_changelist' %}">配置图片识别服务 →</a></p><p><a href="{% url 'admin:core_user_import' %}">批量导入社团账号 →</a></p>{% endif %}</section>
+  </div>
+  <form class="logout-form" action="{% url 'logout' %}" method="post">{% csrf_token %}<button class="secondary">退出登录</button></form>
+</div>
+{% endblock %}

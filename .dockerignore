@@ -1,0 +1,16 @@
+.venv
+.work
+.git
+.env
+.env.*
+!.env.example
+outputs
+sampal
+example
+.agents
+.codex
+media
+staticfiles
+__pycache__
+.pytest_cache
+.ruff_cache

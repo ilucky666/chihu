@@ -1,0 +1,71 @@
+{% load static %}
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f9f9ff">
+  <title>{% block title %}吃乎 · 测评管线{% endblock %}</title>
+  <link rel="icon" type="image/jpeg" href="{% static 'chi-logo.jpg' %}">
+  <link rel="stylesheet" href="{% static 'style.css' %}">
+  <link rel="stylesheet" href="{% static 'brand.css' %}?v=20261004">
+</head>
+<body class="{% if user.is_authenticated %}signed-in{% endif %}">
+  <header class="app-header">
+    <div class="header-inner">
+      <a href="{% url 'home' %}" class="brand" aria-label="吃乎，返回我的项目">
+        <img class="brand-logo" src="{% static 'chi-logo.jpg' %}" alt="吃乎社团 Logo">
+        <span class="brand-copy"><strong>吃乎·测评管线</strong><small>{% block header_subtitle %}智能任务与角色中枢{% endblock %}</small></span>
+      </a>
+      {% if user.is_authenticated %}
+      <nav class="desktop-nav" aria-label="主导航">
+        <a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' or request.resolver_match.url_name == 'project' or request.resolver_match.url_name == 'visit' %}active{% endif %}">我的项目</a>
+        <a href="{% url 'task-inbox' %}" class="{% if request.resolver_match.url_name == 'task-inbox' %}active{% endif %}">测评任务</a>
+        <a href="{% url 'profile' %}" class="{% if request.resolver_match.url_name == 'profile' %}active{% endif %}">i自强</a>
+      </nav>
+      <div class="header-actions">
+        <a class="header-alert" href="{% url 'home' %}#notices" aria-label="查看站内提醒"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></a>
+        <a class="header-avatar" href="{% url 'profile' %}" aria-label="个人信息">{{ user.display_name|default:user.username|slice:":1" }}</a>
+      </div>
+      {% else %}
+      <nav class="desktop-nav" aria-label="账户导航"><a href="{% url 'login' %}">登录</a></nav>
+      {% endif %}
+    </div>
+  </header>
+  <div class="app-shell{% if user.is_authenticated %} has-sidebar{% endif %}">
+    {% if user.is_authenticated %}
+    <aside class="app-sidebar" aria-label="桌面工作区导航">
+      <p class="sidebar-label">工作空间</p>
+      <nav class="sidebar-nav" aria-label="桌面主导航">
+        <a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' or request.resolver_match.url_name == 'project' or request.resolver_match.url_name == 'visit' %}active{% endif %}"><span aria-hidden="true">▦</span>我的项目</a>
+        <a href="{% url 'task-inbox' %}" class="{% if request.resolver_match.url_name == 'task-inbox' %}active{% endif %}"><span aria-hidden="true">☑</span>测评任务</a>
+        <a href="{% url 'profile' %}" class="{% if request.resolver_match.url_name == 'profile' %}active{% endif %}"><span aria-hidden="true">◉</span>i自强</a>
+      </nav>
+      <div class="sidebar-context">
+        <strong>按节点协作</strong>
+        <p>当前任务完成后，测评流程会继续向前。</p>
+      </div>
+      <a class="sidebar-account" href="{% url 'profile' %}"><span class="sidebar-avatar">{{ user.display_name|default:user.username|slice:":1" }}</span><span><strong>{{ user.display_name|default:user.username }}</strong><small>个人信息与设置</small></span><span aria-hidden="true">›</span></a>
+    </aside>
+    {% endif %}
+  <main class="app-main">
+    {% if messages %}{% for message in messages %}<div class="notice" role="status">{{ message }}</div>{% endfor %}{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  </div>
+  {% if user.is_authenticated %}
+  <nav class="mobile-nav" aria-label="主导航">
+    <a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' or request.resolver_match.url_name == 'project' or request.resolver_match.url_name == 'visit' %}active{% endif %}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>我的项目</span>
+    </a>
+    <a href="{% url 'task-inbox' %}" class="{% if request.resolver_match.url_name == 'task-inbox' %}active{% endif %}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3.5h6M8 9h8M8 13h8M8 17h5"/></svg><span>测评任务</span>
+    </a>
+    <a href="{% url 'profile' %}" class="{% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 21c.5-4 3.2-6 7.5-6s7 2 7.5 6"/></svg><span>i自强</span>
+    </a>
+  </nav>
+  {% endif %}
+  <footer>吃乎 · 社团测评协作</footer>
+</body>
+</html>

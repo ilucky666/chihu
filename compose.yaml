@@ -1,0 +1,76 @@
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: eatful
+      POSTGRES_USER: eatful
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eatful -d eatful"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [internal]
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PGHOST: db
+      PGDATABASE: eatful
+      PGUSER: eatful
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      EATFUL_MEDIA_ROOT: /app/media
+    command: sh -c "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 2 --timeout 60"
+    ports:
+      - "127.0.0.1:${EATFUL_BIND_PORT:-8000}:8000"
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+    depends_on:
+      db: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('127.0.0.1',8000),2); s.close()"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    networks: [internal]
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PGHOST: db
+      PGDATABASE: eatful
+      PGUSER: eatful
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      EATFUL_MEDIA_ROOT: /app/media
+    command: python manage.py run_worker
+    volumes:
+      - media_data:/app/media
+    depends_on:
+      web: {condition: service_healthy}
+    networks: [internal]
+  scheduler:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PGHOST: db
+      PGDATABASE: eatful
+      PGUSER: eatful
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      EATFUL_MEDIA_ROOT: /app/media
+    command: sh -c "while true; do python manage.py scan_reminders; sleep 300; done"
+    depends_on:
+      web: {condition: service_healthy}
+    networks: [internal]
+volumes:
+  db_data:
+  media_data:
+  static_data:
+networks:
+  internal:

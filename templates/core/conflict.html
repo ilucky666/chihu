@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block content %}<h1>文案已更新</h1><p>你编辑时的版本已被其他成员更新。请对照后手动合并。</p><div class="grid"><section class="panel"><h2>当前版本 {{ doc.revision }}</h2><pre>{{ doc.body }}</pre></section><section class="panel"><h2>你的草稿</h2><textarea rows="18" readonly>{{ draft }}</textarea></section></div><a href="{% url 'document' doc.pk %}">返回文案</a>{% endblock %}

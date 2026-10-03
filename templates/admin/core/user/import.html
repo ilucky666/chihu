@@ -1,0 +1,7 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<p>上传 UTF-8 CSV，每批 1–200 人。列名为 username,password,display_name,email，后两列可省略。初始密码需满足密码强度要求，请通过私下渠道发给本人。</p>
+<p>默认只检查文件。确认检查通过后，取消“仅检查”再提交同一文件。任何一行有误时，整批都不会写入。</p>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.as_p }}<input type="submit" value="检查 / 导入"></form>
+<p><a href="{% url 'admin:core_user_changelist' %}">返回账号列表</a></p>
+{% endblock %}

@@ -1,0 +1,33 @@
+{
+  "openapi": "3.0.3",
+  "info": {"title": "Eatful API", "version": "1.0.0", "description": "Session 登录；写操作须发送 Django CSRF token。项目权限由服务端 membership 决定，资源 ID 为 UUID。"},
+  "servers": [{"url": "/api/v1"}],
+  "security": [{"sessionCookie": []}],
+  "components": {
+    "securitySchemes": {"sessionCookie": {"type": "apiKey", "in": "cookie", "name": "sessionid"}},
+    "parameters": {"uuid": {"name": "pk", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}},
+    "schemas": {
+      "Project": {"type": "object", "required": ["id", "title", "status"], "properties": {"id": {"type": "string", "format": "uuid"}, "title": {"type": "string"}, "description": {"type": "string"}, "status": {"type": "string"}, "updated_at": {"type": "string", "format": "date-time"}}},
+      "Visit": {"type": "object", "required": ["id", "project_id", "status", "schedule_revision"], "properties": {"id": {"type": "string", "format": "uuid"}, "project_id": {"type": "string", "format": "uuid"}, "venue": {"type": "string"}, "title": {"type": "string"}, "status": {"type": "string"}, "scheduled_at": {"type": "string", "format": "date-time", "nullable": true}, "schedule_revision": {"type": "integer"}}},
+      "Error": {"type": "object", "properties": {"error": {"type": "string"}, "detail": {}}}
+    },
+    "responses": {"Error": {"description": "鉴权、校验或状态错误", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}}
+  },
+  "paths": {
+    "/project-directory/": {"get": {"summary": "项目大厅：已登录成员可查看未结束项目的介绍", "responses": {"200": {"description": "分页项目列表"}}}},
+    "/projects/{pk}/join/": {"parameters": [{"$ref": "#/components/parameters/uuid"}], "post": {"summary": "项目结束前自行加入；重复请求幂等", "responses": {"200": {"description": "项目 ID 与成员角色"}, "400": {"$ref": "#/components/responses/Error"}}}},
+    "/openapi.json": {"get": {"summary": "接口合同", "security": [], "responses": {"200": {"description": "OpenAPI JSON"}}}},
+    "/me/": {"get": {"summary": "当前用户与稳定身份 ID", "responses": {"200": {"description": "用户"}, "403": {"$ref": "#/components/responses/Error"}}}},
+    "/projects/": {
+      "get": {"summary": "我的项目（page, page_size；上限100）", "responses": {"200": {"description": "分页项目列表"}}},
+      "post": {"summary": "创建项目", "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["title"], "properties": {"title": {"type": "string"}, "description": {"type": "string"}}}}}}, "responses": {"201": {"description": "项目", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Project"}}}}, "400": {"$ref": "#/components/responses/Error"}}}
+    },
+    "/projects/{pk}/": {"parameters": [{"$ref": "#/components/parameters/uuid"}], "get": {"summary": "项目详情", "responses": {"200": {"description": "项目"}, "404": {"$ref": "#/components/responses/Error"}}}},
+    "/projects/{pk}/visits/": {"parameters": [{"$ref": "#/components/parameters/uuid"}], "get": {"summary": "项目活动列表", "responses": {"200": {"description": "分页活动列表"}}}, "post": {"summary": "组长创建活动", "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["venue"], "properties": {"venue": {"type": "string"}, "title": {"type": "string"}}}}}}, "responses": {"201": {"description": "活动"}, "403": {"$ref": "#/components/responses/Error"}}}},
+    "/projects/{pk}/exports/": {"parameters": [{"$ref": "#/components/parameters/uuid"}], "get": {"summary": "组长查看导出历史与受保护下载地址", "responses": {"200": {"description": "分页导出列表"}, "403": {"$ref": "#/components/responses/Error"}}}},
+    "/visits/{pk}/": {"parameters": [{"$ref": "#/components/parameters/uuid"}], "get": {"summary": "活动详情", "responses": {"200": {"description": "活动", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Visit"}}}}, "404": {"$ref": "#/components/responses/Error"}}}},
+    "/visits/{pk}/assignments/": {"parameters": [{"$ref": "#/components/parameters/uuid"}], "get": {"summary": "活动任务列表", "responses": {"200": {"description": "分页任务列表"}}}},
+    "/assignments/{pk}/action/": {"parameters": [{"$ref": "#/components/parameters/uuid"}], "post": {"summary": "认领或提交任务", "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["action"], "properties": {"action": {"type": "string", "enum": ["claim", "submit"]}}}}}}, "responses": {"200": {"description": "任务新状态"}, "400": {"$ref": "#/components/responses/Error"}}}},
+    "/documents/{pk}/": {"parameters": [{"$ref": "#/components/parameters/uuid"}], "get": {"summary": "文案详情", "responses": {"200": {"description": "文案"}}}, "put": {"summary": "按 revision 保存文案", "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["body", "revision"], "properties": {"body": {"type": "string"}, "revision": {"type": "integer"}}}}}}, "responses": {"200": {"description": "新版本"}, "409": {"description": "当前版本与未保存草稿"}}}}
+  }
+}

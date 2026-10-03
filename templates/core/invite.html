@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block content %}<h1>邀请链接</h1><div class="panel"><p>将以下链接复制到微信群：</p><input value="{{ join_url }}" readonly onclick="this.select()"><p>链接包含一次性令牌，请只发给社团成员。</p><a href="{% url 'project' project.pk %}">返回项目</a></div>{% endblock %}

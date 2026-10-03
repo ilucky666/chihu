@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block header_subtitle %}任务中心 · 当前节点{% endblock %}
+{% block content %}
+<div class="brand-page task-page">
+  <div class="brand-title"><div><p class="eyebrow">TASK CENTER</p><h1>任务中心 <span class="title-chip">工作台</span></h1><p>按项目身份查看当前节点，完成后流程自动向前。</p></div><span class="role-badge">一项目一专属身份</span></div>
+  <div class="task-metrics"><div><small>进行中的活动</small><strong>{{ items|length }}</strong></div><div><small>我认领的任务</small><strong>{{ my_assignments|length }}</strong></div></div>
+  <div class="brand-section-heading"><h2><span class="heading-dot"></span>当前节点任务</h2><span>只展示各活动正在进行的节点</span></div>
+  <div class="brand-task-grid">
+    {% for item in items %}
+    <a class="brand-task-card {% if item.is_leader %}leader-task{% endif %}" href="{% url 'visit' item.visit.pk %}">
+      <div class="task-card-head"><span class="role-badge {% if item.is_leader %}leader{% endif %}">{% if item.is_leader %}♛ 当前身份：组长{% else %}当前身份：组员{% endif %}</span><span class="status-chip">{{ item.visit.get_status_display }}</span></div>
+      <div class="task-card-project"><small>{{ item.visit.project.title }}</small><h3>{{ item.visit.title|default:item.visit.venue.name }}</h3></div>
+      <div class="task-current-step"><span class="current-step-number">{% if item.step == 'poll' %}1{% elif item.step == 'confirm' %}2{% elif item.step == 'visit' %}3{% else %}4{% endif %}</span><div><small>当前要完成</small><strong>{% if item.step == 'poll' %}时间投票{% elif item.step == 'confirm' %}确认是否参加{% elif item.step == 'visit' %}到店准备{% else %}菜品文案与照片{% endif %}</strong></div><span class="task-arrow">→</span></div>
+      <div class="task-card-foot"><span>{{ item.visit.venue.name }}{% if item.visit.scheduled_at %} · {{ item.visit.scheduled_at|date:'m月d日 H:i' }}{% endif %}</span><strong>进入当前任务 →</strong></div>
+    </a>
+    {% empty %}<div class="panel empty-state"><strong>当前没有进行中的活动</strong><p>可以回到项目视图查看已有项目或创建新项目。</p><a class="button" href="{% url 'home' %}">查看项目 →</a></div>{% endfor %}
+  </div>
+  <section class="panel claimed-panel"><div class="brand-section-heading"><h2>我认领的菜品</h2><span>{{ my_assignments|length }} 项</span></div>
+    {% for a in my_assignments %}<a class="claimed-row" href="{% url 'visit' a.dish.visit_id %}"><span class="claimed-icon" aria-hidden="true">{% if a.kind == 'photo' %}▣{% else %}✎{% endif %}</span><span><strong>{{ a.dish.name }} · {{ a.get_kind_display }}</strong><small>{{ a.dish.visit.project.title }} · {{ a.get_status_display }}</small></span><span class="claimed-arrow" aria-hidden="true">›</span></a>{% empty %}<p class="muted">还没有认领菜品。进入“菜品测评”节点后可认领文案或照片。</p>{% endfor %}
+  </section>
+</div>
+{% endblock %}

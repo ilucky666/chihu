@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block content %}<section class="narrow panel"><h1>无法完成操作</h1>{% for error in errors %}<p>{{ error }}</p>{% endfor %}<p><button type="button" class="secondary" onclick="history.back()">返回修改</button>，或从<a href="/">项目列表</a>重新进入。</p></section>{% endblock %}

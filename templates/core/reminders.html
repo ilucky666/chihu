@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block content %}<p><a href="{% url 'project' project.pk %}">← 项目</a></p><h1>催交摘要</h1><p>复制以下文字到微信群即可。这里只列待提交任务。</p><textarea rows="12" readonly onclick="this.select()">{{ summary }}</textarea>{% endblock %}

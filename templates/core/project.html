@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-intro project-intro"><div><p class="eyebrow">项目视图 / {{ project.get_status_display }}</p><h1>{{ project.title }}</h1><p>{{ project.description|default:"按当前节点完成工作，项目会继续推进。" }}</p></div><span class="role-pill">{% if is_leader %}♛ 当前身份：项目组长{% else %}当前身份：测评组员{% endif %}</span></div>
+<div class="workspace-layout">
+  <section class="panel focus-panel workflow-focus">
+    <p class="eyebrow">当前项目节点</p>
+    {% if workflow_step == 'planning' %}
+      <h2>安排第一次到店</h2><p class="muted">建立活动后即可生成午餐、晚餐时段供成员投票。</p>
+      {% if is_leader %}<form action="{% url 'visit-create' project.pk %}" method="post">{% csrf_token %}<label>店铺名称<input name="venue" required placeholder="例如：金苹果"></label><label>活动名称（可选）<input name="title" placeholder="例如：第一次试吃"></label><button>创建到店活动</button></form>{% else %}<p>等待组长安排到店活动。</p>{% endif %}
+    {% elif workflow_step == 'visits' %}
+      <h2>继续这次到店</h2><p class="muted">当前正在进行：{{ active_visit.title|default:active_visit.venue.name }}</p>
+      <div class="stage-highlight"><span class="stage-dot"></span><div><strong>{% if active_visit.workflow_step == 'poll' %}时间投票{% elif active_visit.workflow_step == 'confirm' %}确认参加{% elif active_visit.workflow_step == 'visit' %}到店准备{% else %}菜品测评{% endif %}</strong><small>{% if active_visit.scheduled_at %}{{ active_visit.scheduled_at|date:'Y年m月d日 H:i' }} · {% endif %}{{ active_visit.venue.name }}</small></div></div>
+      <a class="button" href="{% url 'visit' active_visit.pk %}">进入当前任务 →</a>
+    {% elif workflow_step == 'summary' %}
+      <h2>汇总测评文案</h2><p class="muted">到店任务已完成，整理总稿并确认发布版本。</p><a class="button" href="{% url 'project-document' project.pk %}">编辑项目总稿 →</a>
+      {% if is_leader %}<form method="post" action="{% url 'document-compose' project.pk %}">{% csrf_token %}<button class="secondary">从菜品文案生成初稿</button></form>{% endif %}
+    {% elif workflow_step == 'finance' %}
+      <h2>整理报销材料</h2><p class="muted">总稿已确认，可以核对订单、付款和报销凭证。</p>{% if is_leader %}<a class="button" href="{% url 'claims' project.pk %}">打开报销材料 →</a><form method="post" action="{% url 'content-export' project.pk %}">{% csrf_token %}<button class="secondary">下载总稿与配图包</button></form>{% else %}<p>报销材料由组长整理，等待项目完成。</p>{% endif %}
+    {% else %}
+      <h2>项目已完成</h2><p class="muted">测评和报销材料已完成。组长结束并归档后停止接收新成员。</p>{% if is_leader %}<a class="button" href="{% url 'claims' project.pk %}">查看材料 →</a>{% endif %}
+    {% endif %}
+  </section>
+  <aside class="workspace-side">
+    <section class="panel"><div class="section-title"><h2>到店活动</h2><span>{{ visits|length }} 次</span></div>
+      {% for visit in visits %}<a class="compact-link" href="{% url 'visit' visit.pk %}"><span><strong>{{ visit.title|default:visit.venue.name }}</strong><small>{{ visit.venue.name }}{% if visit.scheduled_at %} · {{ visit.scheduled_at|date:'m月d日 H:i' }}{% endif %}</small></span><span class="status-chip">{% if visit.workflow_step == 'poll' %}投票中{% elif visit.workflow_step == 'confirm' %}确认中{% elif visit.workflow_step == 'visit' %}待到店{% elif visit.workflow_step == 'tasks' %}测评中{% elif visit.workflow_step == 'complete' %}已完成{% else %}已取消{% endif %}</span></a>{% empty %}<p class="muted">还没有到店活动。</p>{% endfor %}
+      {% if is_leader and workflow_step != 'planning' %}<details><summary>新增一次到店</summary><form action="{% url 'visit-create' project.pk %}" method="post">{% csrf_token %}<label>店铺<input name="venue" required></label><label>活动名称<input name="title"></label><button>创建活动</button></form></details>{% endif %}
+    </section>
+    <section class="panel"><div class="section-title"><h2>项目成员</h2><span>{{ members|length }} 人</span></div><div class="avatar-list">{% for m in members %}<div><span class="avatar">{{ m.user.display_name|default:m.user.username|slice:":1" }}</span><span>{{ m.user.display_name|default:m.user.username }}</span><small>{{ m.get_role_display }}</small></div>{% endfor %}</div>{% if is_leader %}<details><summary>项目管理与邀请链接</summary><form method="post" action="{% url 'invite-create' project.pk %}">{% csrf_token %}<label>邀请可使用次数<input type="number" name="max_uses" value="10" min="1" max="100"></label><button class="secondary">生成邀请链接</button></form><p><a href="{% url 'reminder-summary' project.pk %}">查看催交摘要</a></p><form method="post" action="{% url 'project-status' project.pk %}">{% csrf_token %}<label>项目状态<select name="status"><option value="active">进行中</option><option value="closing">待收尾</option><option value="archived">结束并归档（停止加入）</option></select></label><button class="secondary">保存状态</button></form>{% for invite in invitations %}<div class="item">{{ invite.created_at|date:'m-d H:i' }} · 使用 {{ invite.uses }}/{{ invite.max_uses }}{% if not invite.revoked_at %}<form method="post" action="{% url 'invite-revoke' invite.pk %}">{% csrf_token %}<button class="text-button">撤销</button></form>{% endif %}</div>{% endfor %}</details>{% endif %}</section>
+  </aside>
+</div>
+{% endblock %}

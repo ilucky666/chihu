@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-intro"><div><p class="eyebrow">项目大厅 / {{ project.get_status_display }}</p><h1>{{ project.title }}</h1><p>{{ project.description|default:"一起参加这次美食测评。" }}</p></div></div>
+<section class="panel narrow">
+  <div class="info-pair"><span>发起人</span><strong>{{ project.created_by }}</strong></div>
+  <div class="info-pair"><span>已加入</span><strong>{{ member_count }} 人</strong></div>
+  {% if can_join %}<p>加入后可查看项目活动、参与协作。参加到店需要另外确认，加入不会改变已完成的投票或名单。</p><form method="post" action="{% url 'project-join' project.pk %}">{% csrf_token %}<button>加入这个项目 →</button></form>{% else %}<p>项目已结束，停止接收新成员。</p>{% endif %}
+  <p><a href="{% url 'home' %}#directory">返回项目大厅</a></p>
+</section>
+{% endblock %}

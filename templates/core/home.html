@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block header_subtitle %}智能任务与角色中枢{% endblock %}
+{% block content %}
+<div class="brand-page brand-home">
+  <div class="desktop-page-title"><p class="eyebrow">PROJECT WORKSPACE</p><h1>我的项目</h1><p>查看正在推进的测评，并从当前节点继续工作。</p></div>
+  <section class="stats-bar" aria-label="工作台概览">
+    <div><span>参与项目</span><strong>{{ project_cards|length }}<small>个</small></strong></div>
+    <div><span>我的待办</span><strong>{{ task_count }}<small>项</small></strong></div>
+    <div><span>站内提醒</span><strong>{{ unread|length }}<small>条</small></strong></div>
+  </section>
+
+  <details class="create-hero">
+    <summary><span><small>从这里开始</small><strong>创建新美食测评</strong><em>定时间、约成员、写测评，按节点一步步推进</em></span><span class="create-plus" aria-hidden="true">＋</span></summary>
+    <form action="{% url 'project-create' %}" method="post">{% csrf_token %}
+      <label>测评主题<input name="title" required maxlength="200" placeholder="例如：校园周边火锅测评"></label>
+      <label>补充说明（可选）<textarea name="description" rows="2" placeholder="这次想测什么？"></textarea></label>
+      <button>创建项目 →</button>
+    </form>
+  </details>
+
+  <div class="brand-section-heading"><h1><span class="heading-dot"></span>正在推进的测评项目</h1><span>点卡片进入专属工作台</span></div>
+  <div class="brand-project-grid">
+    {% for card in project_cards %}
+    <a class="brand-project-card {% if card.member.role != 'leader' %}member-card{% endif %}" href="{% url 'project' card.member.project_id %}">
+      <div class="card-topline">
+        <span class="role-badge {% if card.member.role == 'leader' %}leader{% endif %}">{% if card.member.role == 'leader' %}♛ 我的身份：组长{% else %}我的身份：组员{% endif %}</span>
+        <span class="stage-badge {% if card.stage == 'finance' or card.stage == 'complete' %}mint{% endif %}">
+          {% if card.stage == 'planning' %}待安排{% elif card.stage == 'visits' %}{% if card.active_visit.status == 'polling' %}时间投票中{% elif card.active_visit.status == 'confirming' %}名单确认中{% elif card.active_visit.status == 'scheduled' %}待到店{% else %}菜品测评中{% endif %}{% elif card.stage == 'summary' %}总稿汇总中{% elif card.stage == 'finance' %}报销整理中{% else %}已完成{% endif %}
+        </span>
+      </div>
+      <div class="card-main"><div><small>{{ card.visit_count }} 次到店活动 · {{ card.member.project.get_status_display }}</small><h2>{{ card.member.project.title }}</h2></div><span class="card-illustration" aria-hidden="true">{% if card.stage == 'finance' %}¥{% elif card.stage == 'complete' %}✓{% elif card.stage == 'planning' %}＋{% else %}🍽{% endif %}</span></div>
+      <div class="card-stage"><span class="stage-icon" aria-hidden="true">▤</span><span>{% if card.stage == 'planning' %}等待创建第一次到店活动{% elif card.stage == 'visits' %}当前：{{ card.active_visit.title|default:card.active_visit.venue.name }}{% elif card.stage == 'summary' %}到店任务已完成，等待整理总稿{% elif card.stage == 'finance' %}总稿已定稿，等待整理报销{% else %}测评与报销材料已完成{% endif %}</span></div>
+      <div class="card-bottom"><span>{% if card.stage == 'visits' and card.active_visit.scheduled_at %}{{ card.active_visit.scheduled_at|date:'m月d日 H:i' }}{% else %}按当前节点推进{% endif %}</span><strong>{% if card.member.role == 'leader' %}进入组长工作台{% else %}进入组员工作台{% endif %} →</strong></div>
+    </a>
+    {% empty %}<div class="panel empty-state"><strong>还没有参与的项目</strong><p>在下方项目大厅选择感兴趣的测评，或创建新项目。</p></div>{% endfor %}
+  </div>
+
+  <section class="brand-directory" id="directory">
+    <div class="brand-section-heading"><h2><span class="heading-dot"></span>项目大厅</h2><span>{{ directory.paginator.count }} 个可加入项目</span></div>
+    <p class="muted">新项目发布后所有成员都能看到，结束前可随时加入。</p>
+    <div class="brand-directory-grid">
+      {% for project in directory %}<article class="panel directory-card">
+        <div class="section-title"><span class="status-chip">{{ project.get_status_display }}</span><small>发起人：{{ project.created_by }}</small></div>
+        <h3><a href="{% url 'project-overview' project.pk %}">{{ project.title }}</a></h3>
+        <p>{{ project.description|default:"一起参加这次美食测评。"|truncatechars:120 }}</p>
+        <div class="directory-actions"><a href="{% url 'project-overview' project.pk %}">查看介绍</a><form method="post" action="{% url 'project-join' project.pk %}">{% csrf_token %}<button class="secondary">加入项目 →</button></form></div>
+      </article>{% empty %}<div class="panel empty-state"><p>暂时没有新的可加入项目。</p></div>{% endfor %}
+    </div>
+    {% if directory.has_other_pages %}<nav class="directory-pagination" aria-label="项目大厅翻页">{% if directory.has_previous %}<a href="?page={{ directory.previous_page_number }}#directory">上一页</a>{% endif %}<span>{{ directory.number }} / {{ directory.paginator.num_pages }}</span>{% if directory.has_next %}<a href="?page={{ directory.next_page_number }}#directory">下一页</a>{% endif %}</nav>{% endif %}
+  </section>
+
+  <section class="brand-notices panel" id="notices"><div class="brand-section-heading"><h2>站内提醒</h2><span>{{ unread|length }} 条未读</span></div>
+    {% for n in unread %}<form class="notice-item" action="{% url 'notification-read' n.pk %}" method="post">{% csrf_token %}<div><strong>{{ n.title }}</strong><p>{{ n.body }}</p></div><button class="text-button">标记已读</button></form>{% empty %}<p class="muted">没有新的提醒，继续按当前任务推进即可。</p>{% endfor %}
+  </section>
+</div>
+{% endblock %}

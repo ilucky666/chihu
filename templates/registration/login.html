@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block content %}<section class="narrow"><h1>登录</h1><form method="post" class="panel">{% csrf_token %}{{ form.as_p }}<input type="hidden" name="next" value="{{ next }}"><button>登录</button></form><p>账号和初始密码由社团管理员发放。首次登录后请到“i自强”修改密码。</p></section>{% endblock %}
