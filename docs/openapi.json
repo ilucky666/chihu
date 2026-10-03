@@ -1,6 +1,6 @@
 {
   "openapi": "3.0.3",
-  "info": {"title": "Eatful API", "version": "1.0.0", "description": "Session 登录；写操作须发送 Django CSRF token。项目权限由服务端 membership 决定，资源 ID 为 UUID。"},
+  "info": {"title": "吃乎工作台 API", "version": "1.0.0", "description": "Session 登录；写操作须发送 Django CSRF token。项目权限由服务端 membership 决定，资源 ID 为 UUID。"},
   "servers": [{"url": "/api/v1"}],
   "security": [{"sessionCookie": []}],
   "components": {

@@ -9,6 +9,9 @@ from core import models
 from core.forms import ImportUsersForm
 from core.services import accounts
 
+admin.site.site_header = "吃乎工作台管理"
+admin.site.site_title = "吃乎工作台"
+
 
 @admin.register(models.User)
 class UserAdmin(DjangoUserAdmin):

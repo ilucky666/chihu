@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#f9f9ff">
-  <title>{% block title %}吃乎 · 测评管线{% endblock %}</title>
+  <title>{% block title %}吃乎工作台{% endblock %}</title>
   <link rel="icon" type="image/jpeg" href="{% static 'chi-logo.jpg' %}">
   <link rel="stylesheet" href="{% static 'style.css' %}">
   <link rel="stylesheet" href="{% static 'brand.css' %}?v=20261004">
@@ -13,9 +13,9 @@
 <body class="{% if user.is_authenticated %}signed-in{% endif %}">
   <header class="app-header">
     <div class="header-inner">
-      <a href="{% url 'home' %}" class="brand" aria-label="吃乎，返回我的项目">
+      <a href="{% url 'home' %}" class="brand" aria-label="吃乎工作台，返回我的项目">
         <img class="brand-logo" src="{% static 'chi-logo.jpg' %}" alt="吃乎社团 Logo">
-        <span class="brand-copy"><strong>吃乎·测评管线</strong><small>{% block header_subtitle %}智能任务与角色中枢{% endblock %}</small></span>
+        <span class="brand-copy"><strong>吃乎工作台</strong><small>{% block header_subtitle %}社团美食测评协作{% endblock %}</small></span>
       </a>
       {% if user.is_authenticated %}
       <nav class="desktop-nav" aria-label="主导航">
@@ -66,6 +66,6 @@
     </a>
   </nav>
   {% endif %}
-  <footer>吃乎 · 社团测评协作</footer>
+  <footer>吃乎工作台 · 社团美食测评协作</footer>
 </body>
 </html>

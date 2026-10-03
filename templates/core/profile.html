@@ -2,7 +2,7 @@
 {% block header_subtitle %}我的吃乎 · Profile{% endblock %}
 {% block content %}
 <div class="brand-page profile-page">
-  <section class="profile-hero panel"><span class="profile-avatar">{{ user.display_name|default:user.username|slice:":1" }}</span><div><p class="eyebrow">MY CHIHU</p><h1>{{ user.display_name|default:user.username }}</h1><p>吃乎·测评管线 · {{ project_count }} 个参与项目</p></div><span class="role-badge">社团成员</span></section>
+  <section class="profile-hero panel"><span class="profile-avatar">{{ user.display_name|default:user.username|slice:":1" }}</span><div><p class="eyebrow">MY CHIHU</p><h1>{{ user.display_name|default:user.username }}</h1><p>吃乎工作台 · {{ project_count }} 个参与项目</p></div><span class="role-badge">社团成员</span></section>
   <section class="integration-placeholder"><span class="integration-icon" aria-hidden="true">⌘</span><h2>学校“自强”平台互联模块</h2><p>预留统一管理平台入口，接入后将在这里集中访问社团服务。</p></section>
   <div class="profile-grid">
     <section class="panel"><div class="brand-section-heading"><h2>个人信息</h2><span>当前账号</span></div><form method="post">{% csrf_token %}{{ form.as_p }}<button>保存个人信息</button></form><p><a href="{% url 'password-change' %}">修改登录密码 →</a></p></section>

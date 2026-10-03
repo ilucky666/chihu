@@ -1,7 +1,7 @@
 [project]
 name = "eatful"
 version = "0.1.0"
-description = "社团美食测评工作台"
+description = "吃乎工作台：社团美食测评协作"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "Django>=5.2,<5.3",
