@@ -113,6 +113,16 @@ else:
     raise ImproperlyConfigured("生产环境必须配置 PostgreSQL")
 
 AUTH_USER_MODEL = "core.User"
+AI_ENCRYPTION_KEYS = os.getenv("EATFUL_AI_ENCRYPTION_KEYS", "")
+AI_ALLOWED_HOSTS = [
+    host.strip().lower()
+    for host in os.getenv(
+        "EATFUL_AI_ALLOWED_HOSTS",
+        "api.openai.com,open.bigmodel.cn,generativelanguage.googleapis.com,"
+        "api.siliconflow.cn,dashscope.aliyuncs.com,dashscope-intl.aliyuncs.com",
+    ).split(",")
+    if host.strip()
+]
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},

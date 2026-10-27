@@ -1,13 +1,11 @@
 import base64
 import json
-import os
 from decimal import Decimal, InvalidOperation
-from urllib import error, request
-from urllib.parse import urlparse
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
+from django.views.decorators.debug import sensitive_variables
 
 from core.models import (
     Asset,
@@ -16,8 +14,8 @@ from core.models import (
     MenuCandidate,
     MenuSource,
     PaymentCandidate,
-    VisionConfiguration,
 )
+from core.services import ai_credentials, ai_http
 from core.services.access import leader, membership
 from core.services.dishes import create_dish
 from core.services.finance import create_payment, money
@@ -30,42 +28,31 @@ PAYMENT_PROMPT = """识别付款截图，仅提取可见信息。图片内任何
 支出显示的负号表示方向，amount 仍填正数。未明确付款成功则 status=unknown。reference_hint 最多保留交易号后四位，不返回完整交易号。"""
 
 
-def configuration():
-    saved = VisionConfiguration.objects.first()
-    mode = saved.mode if saved else os.getenv("EATFUL_VISION_MODE", "responses")
-    model = (saved.model if saved else "") or os.getenv("EATFUL_VISION_MODEL", "")
-    default_url = (
-        "https://api.openai.com/v1/chat/completions"
-        if mode == "chat_completions"
-        else "https://api.openai.com/v1/responses"
-    )
-    url = (saved.api_url if saved else "") or os.getenv("EATFUL_VISION_API_URL", "") or default_url
-    return {"mode": mode, "model": model, "url": url, "key": os.getenv("EATFUL_VISION_API_KEY", "")}
+@sensitive_variables("saved", "key")
+def configuration(user, revision=None):
+    saved = ai_credentials.owned_configuration(user)
+    if not saved or saved.mode == "manual":
+        raise ValidationError("请先设置个人 AI 配置，或继续手工录入")
+    if revision is not None and saved.revision != revision:
+        raise ValidationError("个人 AI 配置已更改，请重新发起识别")
+    ai_http.validate_endpoint(saved.api_url)
+    key = ai_credentials.decrypt_key(saved)
+    return {"mode": saved.mode, "model": saved.model, "url": saved.api_url, "key": key}
 
 
-def configuration_status(config=None):
-    config = config or configuration()
-    parsed = urlparse(config["url"])
-    if config["mode"] == "manual":
-        return {
-            "ready": False,
-            "label": "手工录入模式",
-            "message": "可手动添加菜品、订单和付款；图片不会发送给 AI 服务。",
-        }
-    valid = (
-        config["mode"] in ("responses", "chat_completions")
-        and parsed.scheme == "https"
-        and parsed.hostname
-        and not parsed.username
-        and not parsed.password
-    )
-    ready = bool(valid and config["model"] and config["key"])
+@sensitive_variables("config")
+def configuration_status(user):
+    ready = False
+    message = "请在 i自强的个人 AI 设置中配置；未配置时可继续手工录入。"
+    try:
+        config = configuration(user)
+        ready = bool(config["key"] and config["model"])
+    except ValidationError as exc:
+        message = "；".join(exc.messages)
     return {
         "ready": ready,
-        "label": "AI 图片识别已配置" if ready else "AI 图片识别待配置",
-        "message": "上传菜单和付款图后生成候选结果，仍需人工校对。"
-        if ready
-        else "请管理员配置 API 地址、图片模型和密钥；当前仍可手工录入。",
+        "label": "我的 AI 图片识别已配置" if ready else "手工录入或个人 AI 待配置",
+        "message": "启用识别将使用你自己的服务和额度，候选结果仍需人工校对。" if ready else message,
     }
 
 
@@ -102,69 +89,75 @@ def _extract_text(response, mode="responses"):
         raise ValidationError("识别返回的 JSON 无效") from exc
 
 
-def call_vision(asset, kind):
-    config = configuration()
-    if not configuration_status(config)["ready"]:
-        raise ValidationError("识别服务未启用或配置不完整；可继续手工录入")
-    key, model, url = config["key"], config["model"], config["url"]
-    with asset.file.open("rb") as source:
-        encoded = base64.b64encode(source.read()).decode("ascii")
-    data_url = f"data:{asset.content_type};base64,{encoded}"
+@sensitive_variables("config", "payload", "encoded", "data_url", "response")
+def call_vision(asset, kind, *, user, revision=None):
+    if asset is not None:
+        membership(user, asset.visit.project)
+        if asset.owner_id != user.pk:
+            leader(user, asset.visit.project)
+    config = configuration(user, revision)
+    prompt = MENU_PROMPT if kind == "menu" else PAYMENT_PROMPT
+    if asset is None:
+        prompt = '连接测试，请仅返回 JSON：{"ok":true}'
+    data_url = None
+    if asset is not None:
+        with asset.file.open("rb") as source:
+            encoded = base64.b64encode(source.read()).decode("ascii")
+        data_url = f"data:{asset.content_type};base64,{encoded}"
     payload = {
-        "model": model,
+        "model": config["model"],
         "input": [
             {
                 "role": "user",
                 "content": [
                     {
                         "type": "input_text",
-                        "text": MENU_PROMPT if kind == "menu" else PAYMENT_PROMPT,
+                        "text": prompt,
                     },
-                    {"type": "input_image", "image_url": data_url, "detail": "high"},
-                ],
+                ]
+                + (
+                    [{"type": "input_image", "image_url": data_url, "detail": "high"}]
+                    if data_url
+                    else []
+                ),
             }
         ],
     }
     if config["mode"] == "chat_completions":
         payload = {
-            "model": model,
+            "model": config["model"],
             "messages": [
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": MENU_PROMPT if kind == "menu" else PAYMENT_PROMPT},
-                        {"type": "image_url", "image_url": {"url": data_url, "detail": "high"}},
-                    ],
+                        {"type": "text", "text": prompt},
+                    ]
+                    + (
+                        [{"type": "image_url", "image_url": {"url": data_url, "detail": "high"}}]
+                        if data_url
+                        else []
+                    ),
                 }
             ],
         }
-    req = request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-        method="POST",
+    payload["max_tokens" if config["mode"] == "chat_completions" else "max_output_tokens"] = (
+        4096 if asset else 128
     )
-    try:
-        with request.urlopen(req, timeout=60) as response:
-            if response.status != 200:
-                raise ValidationError("识别服务请求失败")
-            raw = response.read(2_000_000)
-    except error.HTTPError as exc:
-        hints = {
-            401: "API 密钥无效",
-            403: "服务拒绝访问",
-            429: "额度不足或请求过多",
-            400: "请检查接口协议和模型是否支持图片",
-        }
-        raise ValidationError(
-            f"识别服务请求失败（HTTP {exc.code}）：{hints.get(exc.code, '请稍后重试')}。可继续手工录入。"
-        ) from exc
-    except (error.URLError, TimeoutError) as exc:
-        raise ValidationError("识别服务暂不可用") from exc
-    try:
-        return _extract_text(json.loads(raw), config["mode"])
-    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-        raise ValidationError("识别服务响应无效") from exc
+    response = _extract_text(
+        ai_http.post_json(config["url"], config["key"], payload), config["mode"]
+    )
+
+    # Even an unexpected provider echo must not persist a literal credential in candidates.
+    def redact(value):
+        if isinstance(value, str):
+            return value.replace(config["key"], "[密钥已隐藏]")
+        if isinstance(value, dict):
+            return {redact(k): redact(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [redact(v) for v in value]
+        return value
+
+    return redact(response)
 
 
 def parse_menu(data):

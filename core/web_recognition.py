@@ -14,10 +14,10 @@ def queue(request, pk):
     access.membership(request.user, asset.visit.project)
     if asset.owner_id != request.user.id:
         access.leader(request.user, asset.visit.project)
-    if not recognition.configuration_status()["ready"]:
-        raise ValidationError("AI 识别尚未启用或配置不完整，请先手工录入或联系管理员")
+    if not recognition.configuration_status(request.user)["ready"]:
+        raise ValidationError("请先配置你自己的 AI 服务，或继续手工录入")
     kind = "payment" if asset.kind == "payment" else "menu"
-    jobs.enqueue_recognition(asset, kind)
+    jobs.enqueue_recognition(request.user, asset, kind)
     return redirect("recognition", pk=asset.visit_id)
 
 
@@ -39,22 +39,19 @@ def page(request, pk):
         .select_related("asset")
         .order_by("-created_at")
     )
-    job_keys = [
-        f"recognize:{kind}:{asset.pk}:{asset.sha256}"
-        for asset in assets
-        for kind in (["payment"] if asset.kind == "payment" else ["menu"])
-    ]
     return render(
         request,
         "core/recognition.html",
         {
             "visit": visit,
-            "vision_status": recognition.configuration_status(),
+            "vision_status": recognition.configuration_status(request.user),
             "is_leader": member.role == "leader",
             "assets": assets,
             "sources": sources,
             "payment_candidates": candidates,
-            "jobs": Job.objects.filter(key__in=job_keys).order_by("-created_at"),
+            "jobs": Job.objects.filter(
+                requested_by=request.user, payload__asset_id__in=[str(pk) for pk in asset_ids]
+            ).order_by("-created_at"),
         },
     )
 
@@ -91,7 +88,7 @@ def payment_confirm(request, pk):
 @require_POST
 def retry(request, pk):
     job = get_object_or_404(Job, pk=pk)
-    if not recognition.configuration_status()["ready"]:
+    if not recognition.configuration_status(request.user)["ready"]:
         raise ValidationError("请先配置 AI 识别再重试")
     jobs.retry_job(request.user, job)
     asset = get_object_or_404(Asset, pk=job.payload["asset_id"])

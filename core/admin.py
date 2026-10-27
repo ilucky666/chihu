@@ -65,28 +65,6 @@ class UserAdmin(DjangoUserAdmin):
         )
 
 
-@admin.register(models.VisionConfiguration)
-class VisionConfigurationAdmin(admin.ModelAdmin):
-    fields = ("mode", "api_url", "model", "key_status")
-    readonly_fields = ("key_status",)
-
-    @admin.display(description="API 密钥")
-    def key_status(self, obj):
-        import os
-
-        return (
-            "已通过部署环境配置（不显示密钥）"
-            if os.getenv("EATFUL_VISION_API_KEY")
-            else "尚未配置；请由技术部设置 EATFUL_VISION_API_KEY"
-        )
-
-    def has_add_permission(self, request):
-        return super().has_add_permission(request) and not self.model.objects.exists()
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-
-
 @admin.register(models.Project)
 class ProjectAdmin(admin.ModelAdmin):
     list_display = ("title", "status", "organization", "created_by", "created_at")
@@ -104,6 +82,15 @@ class JobAdmin(admin.ModelAdmin):
     list_display = ("kind", "status", "attempts", "available_at", "last_error")
     list_filter = ("kind", "status")
     readonly_fields = ("key", "payload", "result")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(models.Revision, models.AuditEvent, models.ExportRun)

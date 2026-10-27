@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "吃乎工作台：社团美食测评协作"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+  "cryptography>=50.0.2,<51",
   "Django>=5.2,<5.3",
   "djangorestframework>=3.16,<3.17",
   "psycopg[binary]>=3.2,<3.3",

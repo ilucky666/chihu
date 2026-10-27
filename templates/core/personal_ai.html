@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}我的 AI 设置 · 吃乎工作台{% endblock %}
+{% block header_subtitle %}个人信息与设置{% endblock %}
+{% block content %}
+<section class="narrow">
+  <h1>我的 AI 设置</h1>
+  <p>每次识别使用发起者自己的 API 和额度。其他成员不能查看或使用你的密钥；识别候选按项目原有权限共享。</p>
+  <section class="panel"><strong>{{ vision_status.label }}</strong><p>{{ vision_status.message }}</p><p>密钥状态：{% if has_key %}已加密保存，不提供回显{% else %}未保存{% endif %}</p></section>
+  {% if not encryption_ready %}<p class="notice">服务器尚未配置有效的加密主密钥，暂不能保存 AI Key；手工录入不受影响。</p>{% endif %}
+  <form method="post" class="panel" autocomplete="off">
+    {% csrf_token %}{{ form.as_p }}
+    <button>保存我的设置</button>
+    <p class="muted">选择手工模式会清除已保存的 Key。更改或删除配置后，旧任务停止；已经发送给服务商的请求无法撤回。</p>
+  </form>
+  <section class="panel"><h2>测试与删除</h2>
+    <form method="post" action="{% url 'personal-ai-test' %}">{% csrf_token %}<button class="secondary" {% if not vision_status.ready %}disabled{% endif %}>测试已保存的连接</button></form>
+    <p class="muted">测试只发送一条简短文字，不上传图片；可能消耗服务额度。测试通过不代表图片识别准确。</p>
+    <form method="post" action="{% url 'personal-ai-delete' %}">{% csrf_token %}<button class="secondary">删除我的配置与密钥</button></form>
+  </section>
+  <details class="panel"><summary>可用地址与密钥保护说明</summary>
+    <p>接口须使用 HTTPS 和443端口；可用域名：{{ allowed_hosts|join:'、' }}。自建公网服务可由维护者添加域名，不能访问本机或内网地址。</p>
+    <p>Key 在服务器加密保存，应用调用时会解密使用；有服务器控制权的维护者理论上仍可接触密钥。数据库与备份保存密文，删除当前配置不等于清除历史备份。</p>
+    <p>请确认服务地址可信，使用单独、限额且可随时撤销的 API Key。不要在地址中填写密钥。任何模式都可手工录入。</p>
+  </details>
+</section>
+{% endblock %}

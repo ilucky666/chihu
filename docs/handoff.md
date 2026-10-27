@@ -32,28 +32,13 @@ docker compose exec web python manage.py import_users /tmp/accounts.csv
 
 加入前仅能查看基本介绍，不能读内部活动、投稿、账单和图片。加入后，财务原图仍只允许提交者与组长读取。API 保留“我的项目”的权限边界，新增 `/api/v1/project-directory/` 和 `/api/v1/projects/{pk}/join/`。
 
-## 图片识别与手工录入
+## 个人图片识别与手工录入
 
-管理员在后台“图片识别设置”中选择手工录入、Responses API 或 Chat Completions 兼容 API，并填写完整 HTTPS 地址与支持图片的模型。后台设置优先；地址或模型留空时使用部署环境。没有后台记录时使用全部环境配置。
+更新：2026年10月28日，取代原全站共用配置。每位成员在“i自强 → 我的 AI 设置”填写协议、地址、模型和个人Key，保存后不回显。识别任务使用发起者的个人配置，不借用图片上传者或其他成员的凭证；修改或删除配置后旧任务停止，已经发送的请求不能撤回。候选仍需人工校对，付款不自动入账。
 
-密钥只从 `EATFUL_VISION_API_KEY` 环境变量读取，后台仅显示是否配置；不存入数据库、不显示密钥。两种协议分别使用对应请求格式，服务必须支持 Bearer 鉴权、base64 图片输入和文字 JSON 输出；仅支持纯文本或其他专有协议的服务需要另外适配。
+技术部配置 `EATFUL_AI_ENCRYPTION_KEYS` 作为服务器加密主密钥，并单独备份；不要填成员的AI Key。旧 `EATFUL_VISION_*` 不再读取。迁移0006删除旧全站设置，停止没有发起者的历史排队任务，成员重新设置后再发起。手工录入不依赖主密钥或外部AI。
 
-在服务器私有 `.env` 中填写：
-
-```dotenv
-EATFUL_VISION_MODE=responses
-EATFUL_VISION_API_URL=https://可信服务地址/v1/responses
-EATFUL_VISION_MODEL=服务商的图片模型名称
-EATFUL_VISION_API_KEY=在服务器私有配置中填写真实密钥
-```
-
-Chat Completions 使用 `chat_completions` 模式及完整 `/v1/chat/completions` 地址；手工方式用 `manual`。服务商和模型可自由更换，但具体兼容性、费用和识别效果需实测。
-
-修改 `.env` 后执行 `docker compose up -d --force-recreate web worker scheduler`。后台设置立即影响后续任务。识别需运行 worker；配置不完整时可手工建菜、订单、付款，不会假装识别成功。
-
-手工模式不向 AI 发图。AI 可用时每张菜单、订单或付款图都可取消“启用 AI”勾选，选择只保存图片、手工录入；勾选后会将该图片内容发送给所配置服务。结果进入候选校对，付款不会自动入账。失败后有限重试，仍可手工继续；切手工后待处理任务可能显示未启用的失败状态，但不再发送图片。
-
-请求格式依据：[OpenAI 官方 Images and vision](https://developers.openai.com/api/docs/guides/images-vision)。这证明兼容结构的来源，不证明任意服务商都可用或已完成真实识别验收。
+服务器解密代调用，因此仍需信任有服务器控制权的维护者；本方案保护账号之间的隔离，不承诺对维护者的端到端保密。详细启用、域名出站控制、备份恢复和主密钥轮换流程见 [个人 AI 配置与服务器加密保存](personal-ai.md)。
 
 ## 技术部验收
 

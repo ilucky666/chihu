@@ -73,15 +73,18 @@ def test_payment_recognition_pending_until_confirmed(settings, tmp_path):
 
 
 @pytest.mark.django_db
-def test_job_retry_and_dedupe(settings, tmp_path, monkeypatch):
+def test_job_retry_and_dedupe(settings, tmp_path, monkeypatch, personal_ai):
     settings.MEDIA_ROOT = tmp_path
     user = User.objects.create_user(username="job-leader")
     project = create_project(user, "任务")
     visit = create_visit(user, project, "店")
     asset = files.save_image(user, visit, image_file(), "menu")
-    job = jobs.enqueue_recognition(asset, "menu")
-    assert jobs.enqueue_recognition(asset, "menu").pk == job.pk
-    monkeypatch.setattr(jobs, "call_vision", lambda asset, kind: {"items": [{"name": "菜A"}]})
+    personal_ai(user)
+    job = jobs.enqueue_recognition(user, asset, "menu")
+    assert jobs.enqueue_recognition(user, asset, "menu").pk == job.pk
+    monkeypatch.setattr(
+        jobs, "call_vision", lambda asset, kind, **kwargs: {"items": [{"name": "菜A"}]}
+    )
     done = jobs.process_one()
     assert done.status == "done"
     assert MenuSource.objects.get(asset=asset).candidates.count() == 1

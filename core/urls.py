@@ -1,12 +1,15 @@
 from django.contrib.auth.views import PasswordChangeView
 from django.urls import path, reverse_lazy
 
-from . import web, web_exports, web_finance, web_recognition
+from . import web, web_ai, web_exports, web_finance, web_recognition
 
 urlpatterns = [
     path("", web.home, name="home"),
     path("tasks/", web.task_inbox, name="task-inbox"),
     path("me/", web.profile, name="profile"),
+    path("me/ai/", web_ai.settings_page, name="personal-ai"),
+    path("me/ai/delete/", web_ai.delete, name="personal-ai-delete"),
+    path("me/ai/test/", web_ai.test_connection, name="personal-ai-test"),
     path(
         "me/password/",
         PasswordChangeView.as_view(

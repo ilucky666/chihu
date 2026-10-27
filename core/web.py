@@ -159,7 +159,7 @@ def profile(request):
         "core/profile.html",
         {
             "form": form,
-            "vision_status": recognition.configuration_status(),
+            "vision_status": recognition.configuration_status(request.user),
             "project_count": request.user.memberships.filter(active=True).count(),
             "task_count": Assignment.objects.filter(owner=request.user)
             .exclude(status__in=workflow.TERMINAL_ASSIGNMENTS)
@@ -346,7 +346,7 @@ def visit_page(request, pk):
             "workflow_steps": workflow.STEPS,
             "workflow_step_index": step_index,
             "my_attendance": my_attendance,
-            "vision_status": recognition.configuration_status(),
+            "vision_status": recognition.configuration_status(request.user),
             "can_confirm_attendance": obj.status == Visit.Status.SCHEDULED
             and (not obj.confirmation_deadline or obj.confirmation_deadline >= timezone.now()),
             "is_confirmed_attendee": scheduling.confirmed_member(request.user, obj),
@@ -545,10 +545,12 @@ def image_upload(request, pk):
     )
     if (
         asset.kind in (Asset.Kind.MENU, Asset.Kind.ORDER, Asset.Kind.PAYMENT)
-        and recognition.configuration_status()["ready"]
+        and recognition.configuration_status(request.user)["ready"]
         and request.POST.get("recognize") == "on"
     ):
-        jobs.enqueue_recognition(asset, "payment" if asset.kind == Asset.Kind.PAYMENT else "menu")
+        jobs.enqueue_recognition(
+            request.user, asset, "payment" if asset.kind == Asset.Kind.PAYMENT else "menu"
+        )
     return redirect("visit", pk=pk)
 
 

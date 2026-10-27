@@ -34,7 +34,7 @@ python manage.py advance_workflows
 python manage.py run_worker --once
 ```
 
-图片识别可在管理员后台选择手工录入、Responses API 或 Chat Completions 兼容 API，配置完整 HTTPS 地址和图片模型。密钥通过环境配置，用户每张图都可选择跳过 AI。菜单和付款图片识别为可选功能。配置 `EATFUL_VISION_API_KEY` 与 `EATFUL_VISION_MODEL` 后，上传相应图片会自动排队；识别结果仍须人工校对。未配置时可手动建立菜品、订单和付款，整个核心流程不依赖外部识别服务。图像服务支持 Responses 与 Chat Completions 两种兼容请求结构，可通过 `EATFUL_VISION_API_URL` 指向受信服务。
+图片识别采用每人独立配置：在“i自强 → 我的 AI 设置”填写协议、完整 HTTPS 地址、图片模型和个人 API Key。Key 在服务器认证加密保存，不回显；任务使用发起者的配置与额度。部署只需设置独立的 `EATFUL_AI_ENCRYPTION_KEYS` 加密主密钥及可信域名名单，不再读取旧 `EATFUL_VISION_*` 全站凭证。修改或删除配置会停止旧任务；任何时候都可手工录入。升级、主密钥备份和轮换见 [个人 AI 部署说明](docs/personal-ai.md)。
 
 项目与到店页按当前节点显示任务。到店活动依次经过时间投票、确认参加、到店准备和菜品测评；全部成员投票/确认完成或相应截止时间到达时自动推进，后台提醒扫描也会推进过期节点。菜品任务都完成后，项目依次显示总稿汇总和报销材料。顶层导航为“我的项目”“测评任务”“i自强”，移动端使用底部导航。
 
@@ -42,6 +42,7 @@ python manage.py run_worker --once
 
 ## 文档
 
+- [个人 AI 配置与升级](docs/personal-ai.md)
 - [技术部部署交接报告](docs/deployment-report.md)
 - [部署交接、批量账号及 AI 设置](docs/handoff.md)
 

@@ -2,7 +2,6 @@ import uuid
 from decimal import Decimal
 
 from django.contrib.auth.models import AbstractUser
-from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
@@ -29,47 +28,41 @@ class User(AbstractUser):
         return self.display_name or self.username
 
 
-class VisionConfiguration(models.Model):
+class PersonalVisionConfiguration(Entity):
     class Mode(models.TextChoices):
         MANUAL = "manual", "手工录入"
         RESPONSES = "responses", "Responses API"
         CHAT = "chat_completions", "Chat Completions 兼容 API"
 
-    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
-    mode = models.CharField("识别模式", max_length=30, choices=Mode.choices, default=Mode.RESPONSES)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="vision_configuration")
+    mode = models.CharField("识别模式", max_length=30, choices=Mode.choices, default=Mode.MANUAL)
     api_url = models.URLField(
         "完整 API 地址",
         max_length=500,
         blank=True,
-        help_text="留空使用部署环境配置；须为 HTTPS，包含 /responses 或 /chat/completions。",
+        help_text="填写服务商的完整 HTTPS 地址。",
     )
     model = models.CharField(
         "模型名称",
         max_length=150,
         blank=True,
-        help_text="填写服务商支持图片输入的模型名称；留空使用部署环境配置。",
+        help_text="填写服务商支持图片输入的模型名称。",
     )
+    encrypted_api_key = models.TextField(blank=True, editable=False)
+    revision = models.UUIDField(default=uid, editable=False)
 
     class Meta:
-        verbose_name = "图片识别设置"
-        verbose_name_plural = "图片识别设置"
-        constraints = [
-            models.CheckConstraint(condition=Q(id=1), name="single_vision_configuration")
-        ]
+        verbose_name = "个人图片识别设置"
+        verbose_name_plural = "个人图片识别设置"
 
     def clean(self):
-        if self.api_url and not self.api_url.startswith("https://"):
-            raise ValidationError({"api_url": "识别服务必须使用 HTTPS"})
-        from urllib.parse import urlparse
+        from core.services.ai_http import validate_endpoint
 
-        parsed = urlparse(self.api_url)
-        if parsed.username or parsed.password:
-            raise ValidationError(
-                {"api_url": "API 地址不能包含用户名或密钥，请通过部署环境保存密钥"}
-            )
+        if self.mode != self.Mode.MANUAL:
+            validate_endpoint(self.api_url)
 
     def __str__(self):
-        return "全站图片识别设置"
+        return "个人 AI 配置"
 
 
 class Organization(Entity):
@@ -588,6 +581,10 @@ class Job(Entity):
     kind = models.CharField(max_length=40)
     key = models.CharField(max_length=255, unique=True)
     payload = models.JSONField(default=dict)
+    requested_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="ai_jobs"
+    )
+    configuration_revision = models.UUIDField(null=True, blank=True)
     status = models.CharField(max_length=12, default="queued")
     attempts = models.PositiveSmallIntegerField(default=0)
     max_attempts = models.PositiveSmallIntegerField(default=3)
