@@ -37,19 +37,21 @@ docker run --rm --user root --entrypoint chown -v "$volume:/app/media" "$image" 
   10001:10001 /app/media
 start_app() {
   docker run -d --name "$app" --network "$network" -v "$volume:/app/media" \
+    --memory 512m --memory-swap 512m --cpus 1.5 \
     -e DATABASE_URL="mysql://root:test-only-password@${database}:3306/chihu_test" \
     -e DJANGO_SECRET_KEY=test-only-long-secret-key-for-disposable-platform-validation \
     -e DJANGO_ALLOWED_HOSTS=127.0.0.1 -e DJANGO_CSRF_TRUSTED_ORIGINS=https://127.0.0.1 \
     -e EATFUL_MEDIA_STORAGE=filesystem -e EATFUL_MEDIA_PERSISTENT=1 "$image" >/dev/null
   local healthy=false
-  for ((i=0; i<90; i++)); do
+  # Match the current default deploy-agent's 15 x 2-second readiness window.
+  for ((i=0; i<15; i++)); do
+    sleep 2
     if [[ "$(docker inspect --format '{{.State.Health.Status}}' "$app")" == healthy ]]; then
       healthy=true; break
     fi
     if [[ "$(docker inspect --format '{{.State.Status}}' "$app")" == exited ]]; then
       break
     fi
-    sleep 2
   done
   [[ "$healthy" == true ]] || { docker logs "$app"; exit 1; }
 }

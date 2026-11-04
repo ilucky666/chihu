@@ -1,9 +1,11 @@
 import hashlib
 import io
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.db import connections
 from openpyxl import load_workbook
 
 from core.models import User
@@ -75,3 +77,38 @@ def test_four_blocks_and_draft_vs_final():
 def test_formula_like_text_is_escaped():
     assert exports.safe_text('=HYPERLINK("bad")').startswith("'=")
     assert exports.safe_text("+SUM(1,2)").startswith("'+")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_export_snapshot_survives_concurrent_order_edit(monkeypatch, tmp_path, settings):
+    """Exercise the real top-level isolation boundary, including MySQL's next transaction."""
+    from core.models import Order
+
+    settings.MEDIA_ROOT = tmp_path
+    owner = User.objects.create_user(username="snapshot-owner")
+    project = create_project(owner, "并发导出")
+    visit = create_visit(owner, project, "店")
+    order = finance.create_order(owner, visit, "编辑前", expected_amount=10)
+    finance.add_line(owner, order, "菜", price=10)
+    payment = finance.create_payment(owner, visit, owner, 10)
+    finance.allocate(owner, payment, order, 10)
+    claim = exports.create_claim(owner, project, [visit.pk])
+    original_snapshot = exports.claim_snapshot
+
+    def edit_in_other_connection():
+        try:
+            Order.objects.filter(pk=order.pk).update(label="编辑后")
+        finally:
+            connections.close_all()
+
+    def snapshot_with_edit(current):
+        assert Order.objects.get(pk=order.pk).label == "编辑前"
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pool.submit(edit_in_other_connection).result(timeout=5)
+        return original_snapshot(current)
+
+    monkeypatch.setattr(exports, "claim_snapshot", snapshot_with_edit)
+    run = exports.export_claim(owner, claim)
+    assert run.snapshot["blocks"][0]["orders"][0]["label"] == "编辑前"
+    assert run.snapshot["total"] == "10.00"
+    assert Order.objects.get(pk=order.pk).label == "编辑后"
