@@ -116,8 +116,15 @@ def claim_snapshot(claim):
     }, all_evidence
 
 
-@transaction.atomic
 def export_claim(user, claim, final=False):
+    if connection.vendor == "mysql" and not connection.in_atomic_block:
+        with connection.cursor() as cursor:
+            cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+    return _export_claim(user, claim, final)
+
+
+@transaction.atomic
+def _export_claim(user, claim, final=False):
     if connection.vendor == "postgresql" and not connection.savepoint_ids:
         with connection.cursor() as cursor:
             cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")

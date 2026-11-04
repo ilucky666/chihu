@@ -1,6 +1,7 @@
 import time
 
 from django.core.management.base import BaseCommand
+from django.db import close_old_connections
 
 from core.services.jobs import process_one
 
@@ -13,7 +14,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         while True:
-            job = process_one()
+            close_old_connections()
+            try:
+                job = process_one()
+            finally:
+                close_old_connections()
             if job:
                 self.stdout.write(f"{job.pk} {job.status}")
             if options["once"]:

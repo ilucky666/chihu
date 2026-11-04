@@ -1,0 +1,35 @@
+name: Deploy with zq-deploy
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  packages: write
+  deployments: write
+  id-token: write
+jobs:
+  checks:
+    uses: ./.github/workflows/check.yml
+  deploy:
+    needs: checks
+    # Operator enables this only after installing App, registry access and runtime secrets.
+    if: ${{ vars.ZQ_DEPLOY_ENABLED == 'true' }}
+    uses: ZiqiangStudio/zq-deploy/.github/workflows/reusable-container.yml@36a10495289e3d67b59bf602b2d3e62e442c7894
+    with:
+      images: '[{"name":"default","image":"chihu"}]'
+      registry: ${{ vars.REGISTRY_HOST || 'registry.cn-hangzhou.aliyuncs.com' }}
+      registry-namespace: ${{ vars.REGISTRY_NAMESPACE || 'ziqiang_studio' }}
+      registry-provider: ${{ vars.REGISTRY_PROVIDER || 'static' }}
+      registry-region: ${{ vars.REGISTRY_REGION || '' }}
+      registry-instance-id: ${{ vars.REGISTRY_INSTANCE_ID || '' }}
+      registry-oidc-provider-arn: ${{ vars.REGISTRY_OIDC_PROVIDER_ARN || '' }}
+      registry-role-arn: ${{ vars.REGISTRY_ROLE_ARN || '' }}
+      registry-audience: ${{ vars.REGISTRY_AUDIENCE || 'sts.aliyuncs.com' }}
+      environment: production
+      deploy: true
+      domain: ${{ vars.CHIHU_DOMAIN }}
+      port: '8000'
+      healthcheck-path: /healthz
+      validate-script: .platform/validate.sh
+    secrets: inherit

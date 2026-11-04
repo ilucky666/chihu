@@ -14,46 +14,44 @@
 
 服务器需要设置的是**加密主密钥**，不是某位成员的AI Key。应用使用cryptography的Fernet认证加密；密文绑定用户UUID、配置版本、协议、接口地址和模型，复制密文到其他用户或篡改地址不能正常解密。地址及模型属于配置元数据，数据库中可见；API Key为密文。
 
-1. 按部署流程升级依赖或构建新镜像，先停止旧worker和scheduler，备份数据库与media。迁移`0006_personal_ai_credentials`会移除旧全站配置，停止没有发起者身份的旧排队任务，不将全站Key分配给任何成员。
-2. 在服务器的私有终端生成主密钥。Compose已build、`.env`已有常规部署参数时，可运行：
+当前生产部署已适配自强平台，使用单个chihu容器、外置RDS与私有OSS；具体运行配置以[平台接入说明](zq-deploy.md)为准。
+
+1. 在维护窗口停止写入和应用后台任务，备份数据库、媒体和旧主密钥。迁移`0006_personal_ai_credentials`会移除旧全站配置，停止没有发起者身份的旧排队任务，不将全站Key分配给任何成员。
+2. 在服务器的私有终端用已构建镜像生成主密钥：
 
 ```bash
-docker compose -p chihu-prod build web
-docker compose -p chihu-prod run --rm --no-deps web python manage.py generate_ai_encryption_key
+docker run --rm -e DJANGO_DEBUG=1 --entrypoint python "$IMAGE_REF" manage.py generate_ai_encryption_key
 ```
 
-3. 将唯一输出写入该环境私有`.env`的`EATFUL_AI_ENCRYPTION_KEYS`。不要把真实值贴到聊天、工单、公开日志或仓库；生产与测试分别生成。输出仅此一次，后续复用，不要每次重启重新生成。
+3. 将唯一输出写入服务器服务私有环境文件的`EATFUL_AI_ENCRYPTION_KEYS`。不要把真实值贴到聊天、工单、公开日志、GitHub Variables或仓库；生产与测试分别生成。输出仅此一次，后续复用，不要每次重启重新生成。
 
 ```dotenv
 EATFUL_AI_ENCRYPTION_KEYS=填写本环境生成的主密钥
 EATFUL_AI_ALLOWED_HOSTS=api.openai.com,open.bigmodel.cn,generativelanguage.googleapis.com,api.siliconflow.cn,dashscope.aliyuncs.com,dashscope-intl.aliyuncs.com
 ```
 
-4. 在维护窗口按以下次序启动，让数据库迁移及加密主密钥对所有进程一致生效；B测试时将项目名替换为固定的`chihu-test`。
+4. 由平台用新运行环境重新部署，容器启动时检查配置并执行迁移，再启动web、worker和scheduler。确认启动成功后执行：
 
 ```bash
-docker compose -p chihu-prod stop worker scheduler
-docker compose -p chihu-prod up -d --build --force-recreate db web
-docker compose -p chihu-prod exec web python manage.py check --deploy
-docker compose -p chihu-prod exec web python manage.py showmigrations core
-docker compose -p chihu-prod up -d --build --force-recreate worker scheduler
+docker exec chihu python manage.py check --deploy
+docker exec chihu python manage.py showmigrations core
 ```
 
 应用启动仍自动执行迁移。`core.W001`表示未配置主密钥，只能手工录入；`core.E001`表示主密钥格式错误。原有`DJANGO_SECRET_KEY`和数据库密码继续独立保管，不能用它们替代AI加密主密钥。旧`EATFUL_VISION_API_KEY/MODE/MODEL/API_URL`不再读取，请从部署环境移除不再使用的全站凭证。
 
-服务器拒绝非HTTPS、非443端口、含用户名密码、查询参数或片段的地址，以及IP地址和未获准的域名。域名解析后只允许公网IP，连接固定到已验证的地址并校验证书及主机名，不跟随重定向、不读取环境代理。新增可信的自建公网服务时，技术部可在`EATFUL_AI_ALLOWED_HOSTS`追加精确域名并重建web与worker；不要填通配符、本机、内网或云元数据地址。此变量只是服务器出站服务名单，不是社团成员账号白名单。
+服务器拒绝非HTTPS、非443端口、含用户名密码、查询参数或片段的地址，以及IP地址和未获准的域名。域名解析后只允许公网IP，连接固定到已验证的地址并校验证书及主机名，不跟随重定向、不读取环境代理。新增可信的自建公网服务时，技术部可在`EATFUL_AI_ALLOWED_HOSTS`追加精确域名并重新部署应用容器；不要填通配符、本机、内网或云元数据地址。此变量只是服务器出站服务名单，不是社团成员账号白名单。
 
 ## 备份与主密钥轮换
 
-数据库备份中含加密后的API Key，但**备份脚本不包含主密钥或.env**。必须将当前及必要的历史加密主密钥另行加密、限权保存。丢失主密钥将无法解密对应凭证，成员须重新配置；项目和图片可按正常备份恢复。删除当前Key不会清除已存在的历史备份，备份也应按保留策略处理。不要把生产密钥复制到普通测试环境；恢复生产备份的演练需在受限隔离环境进行。
+数据库备份中含加密后的API Key，但**RDS备份不包含主密钥或服务环境文件**。必须将当前及必要的历史加密主密钥另行加密、限权保存。丢失主密钥将无法解密对应凭证，成员须重新配置；项目和图片可按正常备份恢复。删除当前Key不会清除已存在的历史备份，备份也应按保留策略处理。不要把生产密钥复制到普通测试环境；恢复生产备份的演练需在受限隔离环境进行。
 
-轮换步骤：进入维护窗口，停止识别worker及设置修改；备份数据库和旧主密钥；生成新主密钥，将`.env`改为`新主密钥,旧主密钥`；重建web以加载密钥环，执行下面的重加密命令。
+轮换步骤：进入维护窗口，停止旧应用和写入；备份数据库和旧主密钥；生成新主密钥，将服务器私有运行文件改为`新主密钥,旧主密钥`，用同一镜像和私有运行文件执行一次重加密（路径以技术部配置为准）。
 
 ```bash
-docker compose -p chihu-prod exec web python manage.py rotate_ai_keys
+docker run --rm --env-file /etc/zq-deploy/secrets/chihu.env --entrypoint python "$IMAGE_REF" manage.py rotate_ai_keys
 ```
 
-成功后保留仅新主密钥的`.env`，重建web、worker、scheduler，验证自己的设置可用后恢复业务。命令整批事务执行，不输出API Key，不改变个人配置版本；无法解密时整批回滚。先用B验证流程；旧备份仍需要当时的旧主密钥，应单独保存至相应备份淘汰。不能只删除旧主密钥而跳过重加密。
+若运行参数分布在common.env和服务文件中，一次性命令也需按顺序传入两个--env-file；网络及CA挂载与生产保持一致。成功后运行文件保留仅新主密钥，平台重新部署，验证自己的设置可用后恢复业务。命令整批事务执行，不输出API Key，不改变个人配置版本；无法解密时整批回滚。先在隔离环境验证流程；旧备份仍需要当时的旧主密钥，应单独保存至相应备份淘汰。不能只删除旧主密钥而跳过重加密。
 
 ## 安全边界与验收
 

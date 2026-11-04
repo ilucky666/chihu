@@ -4,9 +4,15 @@
 
 源码仓库：https://github.com/ilucky666/chihu 。账号由管理员批量导入，应用关闭自行注册；所有已登录成员可在项目大厅自行加入未结束项目。成员在 i自强修改个人资料与密码。
 
+## 自强平台自动部署
+
+现按 [zq-deploy](https://github.com/ZiqiangStudio/zq-deploy) 接入：GitHub 检查通过后构建不可变镜像，由中央代理部署。一个应用镜像包含网页、图片识别 worker 和提醒调度器，使用统一 RDS MySQL 与私有 OSS；镜像内不保存数据库和上传文件。服务器只注入运行配置，不需要拉取源码或本地安装 Python。
+
+技术部按 [平台接入与迁移说明](docs/zq-deploy.md) 配置域名、注册表、RDS、OSS 和加密主密钥，最后设置仓库变量 `ZQ_DEPLOY_ENABLED=true`。未启用时 GitHub 仍运行双数据库测试与真实容器冒烟，不会请求生产部署。`compose.yaml` 是单镜像预览入口，生产默认由平台代理直接启动镜像。
+
 ## 本地启动
 
-要求 Python 3.12 和 PostgreSQL。命令行直接启动读取进程环境变量，不会自动加载 `.env`；Docker Compose 启动才读取 `.env`。推荐使用独立虚拟环境：
+要求 Python 3.12 和 MySQL 8.0.16+（推荐 8.4），也兼容已有 PostgreSQL 14+。MySQL 数据库使用 utf8mb4、utf8mb4_bin；应用使用 InnoDB。命令行直接启动读取进程环境变量，不会自动加载 `.env`；Docker Compose 启动才读取 `.env`。推荐使用独立虚拟环境：
 
 ```bash
 python -m venv .venv
@@ -19,7 +25,7 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-Windows PowerShell 激活方式为 `.venv\Scripts\Activate.ps1`，环境变量写法为 `$env:DJANGO_DEBUG='1'`、`$env:DATABASE_URL='postgresql://用户名:密码@127.0.0.1:5432/数据库名'`。未设置数据库时仅在 `DJANGO_DEBUG=1` 下使用本地 SQLite，并需先创建 `.work` 目录；正式部署必须 PostgreSQL。Docker 部署复制 `.env.example` 为私有 `.env` 后填写真实设置，见部署交接文档。
+Windows PowerShell 激活方式为 `.venv\Scripts\Activate.ps1`，环境变量写法为 `$env:DJANGO_DEBUG='1'`、`$env:DATABASE_URL='postgresql://用户名:密码@127.0.0.1:5432/数据库名'`。使用 MySQL 时改为 `mysql://用户名:URL编码后的密码@数据库地址:3306/数据库名`。Linux 安装 mysqlclient 需要编译工具、default-libmysqlclient-dev 和 pkg-config，Dockerfile 已处理。未设置数据库时仅在 `DJANGO_DEBUG=1` 下使用本地 SQLite，并需先创建 `.work` 目录；正式部署使用外置数据库。
 
 ## 常用命令
 
@@ -38,10 +44,11 @@ python manage.py run_worker --once
 
 项目与到店页按当前节点显示任务。到店活动依次经过时间投票、确认参加、到店准备和菜品测评；全部成员投票/确认完成或相应截止时间到达时自动推进，后台提醒扫描也会推进过期节点。菜品任务都完成后，项目依次显示总稿汇总和报销材料。顶层导航为“我的项目”“测评任务”“i自强”，移动端使用底部导航。
 
-当前开发电脑的 `.work/` 留有本地启动脚本和演示数据，它们未上传仓库；新电脑按上述命令启动、创建管理员并批量导入自己的账号。需要后台识别和截止推进时，另开终端用同一套环境变量运行 `python manage.py run_worker`，并定期运行 `python manage.py scan_reminders`。生产 Compose 已包含这两个后台服务。
+当前开发电脑的 `.work/` 留有本地启动脚本和演示数据，它们未上传仓库；新电脑按上述命令启动、创建管理员并批量导入自己的账号。直接用 Python 开发时另开终端运行 `python manage.py run_worker` 和 `python manage.py run_scheduler`。生产镜像默认同时运行三项服务，任何一项意外退出会停止整个容器，由部署平台重启。
 
 ## 文档
 
+- [自强平台部署、配置和迁移](docs/zq-deploy.md)
 - [个人 AI 配置与升级](docs/personal-ai.md)
 - [技术部部署交接报告](docs/deployment-report.md)
 - [部署交接、批量账号及 AI 设置](docs/handoff.md)

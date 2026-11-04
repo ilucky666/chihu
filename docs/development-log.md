@@ -1,5 +1,13 @@
 # 吃乎工作台开发与验收记录
 
+## 2026-11-04 自强统一部署适配
+
+阅读zq-deploy README、reusable-container、reusable-deploy、deploy-agent实际源码和部署/服务/备份合同，按上游36a10495289e3d67b59bf602b2d3e62e442c7894接入。新增薄workflow和部署前检查门槛；默认关闭生产发布，技术部显式配置ZQ_DEPLOY_ENABLED后才请求中央部署。业务仓库不保存服务器部署脚本、SSH或代理凭证。
+
+新增RDS MySQL支持和0007迁移，用生成列与唯一索引保留原文案/凭证约束，兼容PostgreSQL；新增private OSS后端，文件仍通过原有权限下载；镜像监督web/worker/scheduler，数据库不可用时探针返回503。根Compose不再包含数据库、持久化媒体卷或源码构建，单应用镜像读取外部服务配置。静态文件构建时收集，应用UID10001运行。同步部署交接和个人AI主密钥说明，旧四容器文档标注历史状态。
+
+本地PostgreSQL初轮104项测试通过（25.05秒）；Docker Desktop引擎启动失败，未将本地容器检查记为通过。新增GitHub Linux镜像构建与启动、私有下载、换容器后数据/文件保留、子进程退出监督检查，以及MySQL8.4/PostgreSQL17双库回归。远端结果以对应GitHub Actions运行记录为准；真实RDS/OSS、中央App/代理调度、生产Traefik和旧生产数据迁移未执行。
+
 ## 2026-10-28 个人 AI 配置与服务器加密保存
 
 将全站 AI 设置替换为“i自强 → 个人 AI 配置”。成员独立选择手工、Responses 或 Chat Completions，填写服务地址、模型和 Key，可测试连接、替换及删除；Key 从不回显。服务端使用独立主密钥和 Fernet 加密保存成员 Key，并将用户、配置版本和服务地址绑定到密文。管理员后台不提供成员配置读取入口，任务管理界面只读。

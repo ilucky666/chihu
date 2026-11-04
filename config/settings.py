@@ -1,8 +1,9 @@
 import os
 from pathlib import Path
-from urllib.parse import unquote, urlparse
 
 from django.core.exceptions import ImproperlyConfigured
+
+from config.database import from_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
@@ -29,6 +30,7 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 SECURE_REFERRER_POLICY = "same-origin"
 SECURE_SSL_REDIRECT = not DEBUG
+SECURE_REDIRECT_EXEMPT = [r"^healthz/?$"]
 SECURE_HSTS_SECONDS = 3600 if not DEBUG else 0
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
@@ -76,20 +78,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 database_url = os.getenv("DATABASE_URL", "")
 if database_url:
-    parsed = urlparse(database_url)
-    if parsed.scheme not in ("postgres", "postgresql"):
-        raise ImproperlyConfigured("DATABASE_URL must use PostgreSQL")
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": unquote(parsed.path.lstrip("/")),
-            "USER": unquote(parsed.username or ""),
-            "PASSWORD": unquote(parsed.password or ""),
-            "HOST": parsed.hostname or "localhost",
-            "PORT": parsed.port or 5432,
-            "CONN_MAX_AGE": 60,
-        }
-    }
+    DATABASES = {"default": from_url(database_url)}
 elif os.getenv("PGHOST"):
     DATABASES = {
         "default": {
@@ -110,7 +99,7 @@ elif DEBUG:
         }
     }
 else:
-    raise ImproperlyConfigured("生产环境必须配置 PostgreSQL")
+    raise ImproperlyConfigured("生产环境必须配置 RDS MySQL 或 PostgreSQL")
 
 AUTH_USER_MODEL = "core.User"
 AI_ENCRYPTION_KEYS = os.getenv("EATFUL_AI_ENCRYPTION_KEYS", "")
@@ -146,6 +135,11 @@ STORAGES = {
 }
 MEDIA_ROOT = Path(os.getenv("EATFUL_MEDIA_ROOT", str(BASE_DIR / "media")))
 MEDIA_URL = "/private-media/"
+MEDIA_STORAGE = os.getenv("EATFUL_MEDIA_STORAGE", "filesystem")
+if MEDIA_STORAGE == "oss":
+    STORAGES["default"] = {"BACKEND": "core.storage.PrivateOSSStorage"}
+elif MEDIA_STORAGE != "filesystem":
+    raise ImproperlyConfigured("EATFUL_MEDIA_STORAGE must be filesystem or oss")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/"

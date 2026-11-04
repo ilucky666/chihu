@@ -1,12 +1,12 @@
 # 吃乎工作台：部署交接与账号、AI 配置
 
-更新：2026-10-04。源码仓库：https://github.com/ilucky666/chihu 。真实 Ubuntu 部署、实际 AI 识别与用户试点仍需验收，模拟接口测试不代表真实识别效果。
+更新：2026-11-04。源码仓库：https://github.com/ilucky666/chihu 。部署改用自强平台单镜像、RDS MySQL和私有OSS，先阅读[当前接入说明](zq-deploy.md)。真实平台部署、OSS和AI效果与用户试点仍需验收。
 
 ## 管理员批量开通账号
 
 应用只提供登录，关闭自行注册；旧 `/register/` 地址 GET/POST 均返回 403，不会创建用户。现有账号保留，停用账号请在后台取消“有效”。
 
-首次部署执行 `docker compose exec web python manage.py createsuperuser`。管理员登录 `/admin/`，在用户列表点击“批量导入账号”，i自强也提供管理员入口。
+首次部署执行 `docker exec -it chihu python manage.py createsuperuser`。管理员登录 `/admin/`，在用户列表点击“批量导入账号”，i自强也提供管理员入口。
 
 上传 UTF-8 CSV（支持 BOM），每批 1–200 人、最多 1MB。必须包含 `username,password`，可附加 `display_name,email`。[空白 CSV 模板](accounts-template.csv) 仅含表头，填写后需另存到仓库外。密码遵循 Django 强度规则。CSV 含初始密码，应通过私有渠道发给管理员与本人，不上传 GitHub，不放在公开网站目录，导入后清理临时文件。
 
@@ -15,8 +15,8 @@
 维护者也可将 CSV 私下放到容器临时位置后运行：
 
 ```bash
-docker compose exec web python manage.py import_users /tmp/accounts.csv --dry-run
-docker compose exec web python manage.py import_users /tmp/accounts.csv
+docker exec chihu python manage.py import_users /tmp/accounts.csv --dry-run
+docker exec chihu python manage.py import_users /tmp/accounts.csv
 # 需要更新已有普通账号时，显式追加 --update-existing。
 ```
 
@@ -46,8 +46,8 @@ docker compose exec web python manage.py import_users /tmp/accounts.csv
 
 允许上线后持续迭代：先由 4–10 名成员完成小范围试运行，确认投票、参加、提交、审核和材料导出的核心闭环，再根据使用反馈改善界面、提醒和识别体验。上线前须验证正式环境的账号权限、金额与凭证一致性、HTTPS、数据库与图片备份恢复；AI 未配置时采用手工录入。未来统一平台接入和原生小程序开发不是当前独立网页试运行的前置条件。
 
-后续更新先在 B 测试，记录代码版本并备份后更新 A；有数据结构变化时，按迁移与回滚方案操作。不要在运行中的生产服务器直接试改代码。
+后续更新先在隔离测试环境验证，再由GitHub工作流发布不可变镜像；有数据结构变化时，按迁移与回滚方案操作。不要在运行中的生产容器直接试改代码。
 
-按 [部署及恢复](deployment.md) 先 B 后 A，创建生产 `.env`、密钥、数据库密码和真实域名。复测账号导入与改密、各阶段加入、重复加入、归档拒绝、权限、AI 与手工回退；验证实际手机/微信上传、Excel/WPS 打印、容器重启、worker 恢复、数据库与媒体一起备份恢复。
+按 [平台部署及恢复](zq-deploy.md) 设置服务器私有运行文件、数据库与OSS权限和真实域名。复测账号导入与改密、各阶段加入、重复加入、归档拒绝、权限、AI 与手工回退；验证实际手机/微信上传、Excel/WPS 打印、容器替换后图片保留、worker恢复、RDS与OSS及主密钥一起备份恢复。
 
 仓库不含本机环境、账号 CSV、演示账号、数据库、真实图片、样例和原型；空白报销模板和社团 Logo 随源码交付。生产账号、密钥与备份另走私有渠道，执行负责人、版本和实际验收证据记入 [验收记录](development-log.md)。

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Restore a verified backup only into an empty Compose instance."""
+"""LEGACY PostgreSQL db/web Compose restore; NOT for zq-deploy RDS/OSS. See docs/zq-deploy.md."""
 
 import argparse
 import hashlib

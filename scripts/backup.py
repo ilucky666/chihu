@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Back up a Compose database and private media as one verified set."""
+"""LEGACY PostgreSQL db/web Compose backup; NOT for zq-deploy RDS/OSS. See docs/zq-deploy.md."""
 
 import argparse
 import hashlib

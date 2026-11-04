@@ -5,6 +5,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
+from django.db.models.functions import Coalesce
 
 
 def uid():
@@ -370,22 +371,52 @@ class ReviewDocument(Entity):
     revision = models.PositiveIntegerField(default=0)
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.WRITING)
     generated_at = models.DateTimeField(null=True, blank=True)
+    publication_dish = models.GeneratedField(
+        expression=models.Case(
+            models.When(is_publication=True, then=models.F("dish_id")), default=None
+        ),
+        output_field=models.UUIDField(),
+        db_persist=True,
+        null=True,
+    )
+    publication_project = models.GeneratedField(
+        expression=models.Case(
+            models.When(is_publication=True, dish__isnull=True, then=models.F("project_id")),
+            default=None,
+        ),
+        output_field=models.UUIDField(),
+        db_persist=True,
+        null=True,
+    )
+    original_dish = models.GeneratedField(
+        expression=models.Case(
+            models.When(is_publication=False, then=models.F("dish_id")), default=None
+        ),
+        output_field=models.UUIDField(),
+        db_persist=True,
+        null=True,
+    )
+    original_author = models.GeneratedField(
+        expression=models.Case(
+            models.When(is_publication=False, then=models.F("author_id")), default=None
+        ),
+        output_field=models.UUIDField(),
+        db_persist=True,
+        null=True,
+    )
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["dish"],
-                condition=Q(is_publication=True, dish__isnull=False),
+                fields=["publication_dish"],
                 name="unique_publication_dish",
             ),
             models.UniqueConstraint(
-                fields=["project"],
-                condition=Q(is_publication=True, dish__isnull=True),
+                fields=["publication_project"],
                 name="unique_project_document",
             ),
             models.UniqueConstraint(
-                fields=["dish", "author"],
-                condition=Q(is_publication=False),
+                fields=["original_dish", "original_author"],
                 name="unique_author_dish_review",
             ),
         ]
@@ -519,6 +550,16 @@ class EvidenceLink(Entity):
         Payment, on_delete=models.CASCADE, null=True, blank=True, related_name="evidence_links"
     )
     note = models.CharField(max_length=255, blank=True)
+    order_identity = models.GeneratedField(
+        expression=Coalesce("order_id", models.Value(uuid.UUID(int=0))),
+        output_field=models.UUIDField(),
+        db_persist=True,
+    )
+    payment_identity = models.GeneratedField(
+        expression=Coalesce("payment_id", models.Value(uuid.UUID(int=0))),
+        output_field=models.UUIDField(),
+        db_persist=True,
+    )
 
     class Meta:
         constraints = [
@@ -527,9 +568,8 @@ class EvidenceLink(Entity):
                 name="evidence_has_target",
             ),
             models.UniqueConstraint(
-                fields=["asset", "order", "payment"],
+                fields=["asset", "order_identity", "payment_identity"],
                 name="unique_evidence_link",
-                nulls_distinct=False,
             ),
         ]
 
