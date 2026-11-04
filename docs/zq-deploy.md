@@ -28,7 +28,7 @@
 | MYSQL_SSL_CA | 可选，容器中可访问的RDS CA文件；启用时验证证书和主机名 |
 | EATFUL_MEDIA_STORAGE | 生产设为oss，不能依赖容器文件层 |
 | OSS_ENDPOINT / OSS_BUCKET | HTTPS地域endpoint、私有Bucket名 |
-| OSS_PROJECT | 独立项目/环境前缀；默认代理会设为chihu，测试环境须隔离 |
+| OSS_PROJECT | 默认代理强制设为chihu；测试用独立Bucket，或由自定义服务器清单隔离前缀 |
 | OSS_ACCESS_KEY_ID / OSS_ACCESS_KEY_SECRET | 限权RAM凭证，仅注入运行环境 |
 | OSS_SECURITY_TOKEN | 仅STS需要；短期凭证须有外部刷新及重新注入机制 |
 | EATFUL_AI_ENCRYPTION_KEYS | 独立加密主密钥，首次生成后稳定保管，详见个人AI说明 |

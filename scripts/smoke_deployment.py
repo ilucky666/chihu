@@ -31,7 +31,8 @@ def verify():
     path = f"/images/{asset.pk}/download/"
     assert client.get(path, secure=True).status_code == 302
     client.force_login(User.objects.get(username="platform-smoke-outsider"))
-    assert client.get(path, secure=True).status_code == 403
+    # Membership denial deliberately hides the existence of another project's files.
+    assert client.get(path, secure=True).status_code == 404
     client.force_login(asset.owner)
     response = client.get(path, secure=True)
     assert response.status_code == 200
